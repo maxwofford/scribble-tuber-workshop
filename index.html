@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<!-- Hey! Glad you're checking this out. This code was created in a call in the HC slack -->
+<html>
+  <head>
+    <title>Scribbletuber!</title>
+    <style>
+      #scribbletuber {
+        transition-duration: 0.1s;
+      }
+
+      .idle {
+        animation: idle 1s infinite alternate;
+        filter: contrast(0.7);
+      }
+
+      .talking {
+        animation: talking 0.2s infinite alternate;
+      }
+
+      @keyframes idle {
+        from {
+          transform: translateY(0%);
+        } to {
+          transform: translateY(2%);
+        }
+      }
+
+      @keyframes talking {
+        from {
+          transform: scale(1.01, 0.99) translateY(2%);
+        } to {
+          transform: scale(0.99, 1.01) translateY(0%);
+        }
+      }
+
+    </style>
+  </head>
+  <body>
+    <h1>Hello world! Have a garbage day</h1>
+    <input type="range" id="position-slider" min="0" max="100">
+    <img id="scribbletuber" src="closed.png" style="left: 0;position: relative; width:200px">
+    <script>
+      const positionSlider = document.getElementById('position-slider')
+      const scribbletuber = document.getElementById('scribbletuber')
+
+      // when you slide the input, move the image
+      scribbletuber.style.left = `${positionSlider.value}px`
+      positionSlider.addEventListener('input', () => {
+        scribbletuber.style.left = `${positionSlider.value}px`
+      })
+      
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => {
+          alert('audio granted!')
+          const audio = new AudioContext()
+          const analyser = audio.createAnalyser()
+          analyser.minDecibels = -100
+          analyser.maxDecibels = 0
+          analyser.fftSize = 64 * 2 * 2 * 2 * 2
+          analyser.smoothingTimeConstant = 0.70
+          const source = audio.createMediaStreamSource(stream)
+          source.connect(analyser)
+          const array = new Uint8Array(analyser.frequencyBinCount)
+          function speak() {
+            requestAnimationFrame(speak)
+            analyser.getByteFrequencyData(array)
+
+            let length = 0
+            for (let i = 0; i < array.length; i++) {
+              if (array[i] > 0) {
+                length += 1
+              }
+              array[i] = (((array[i] * 100) / 255) - 100) * -1
+            }
+            const dB = Math.min(100, -Math.round(array.reduce((x, y) => x + y / array.length)) + 200)
+
+            if (dB < 5) {
+              scribbletuber.src = 'closed.png'
+              scribbletuber.style.bottom = `${dB/10}px`
+              scribbletuber.classList.remove('talking')
+              scribbletuber.classList.add('idle')
+            } else if (dB < 30) {
+              scribbletuber.src = 'open.png'
+              scribbletuber.style.bottom = `${dB}px`
+              scribbletuber.classList.add('talking')
+              scribbletuber.classList.remove('idle')
+            } else {
+              // super loud
+              scribbletuber.src = 'scream.png'
+              scribbletuber.style.bottom = `${dB}px`
+              scribbletuber.classList.add('talking')
+              scribbletuber.classList.remove('idle')
+            }
+          }
+          speak()
+        })
+
+    </script>
+  </body>
+</html>
